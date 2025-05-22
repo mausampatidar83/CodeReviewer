@@ -8,19 +8,23 @@ const models = [
   { name: 'Claude 3 Haiku', value: 'anthropic/claude-3-haiku' },
 ];
 
-const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-
 function App() {
-  console.log("API Key:", OPENROUTER_API_KEY);
+  const [apiKey, setApiKey] = useState(import.meta.env.VITE_OPENROUTER_API_KEY || '');
   const [code, setCode] = useState('');
   const [review, setReview] = useState('');
   const [model, setModel] = useState(models[0].value);
   const [loading, setLoading] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState('');
 
   const handleReview = async () => {
     if (!code.trim()) return alert("Please enter some code.");
+    if (!apiKey.trim()) {
+      setApiKeyError('API key is required.');
+      return;
+    }
     setLoading(true);
     setReview('');
+    setApiKeyError('');
 
     try {
       const response = await axios.post(
@@ -36,7 +40,7 @@ function App() {
         },
         {
           headers: {
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
         }
@@ -46,7 +50,12 @@ function App() {
       setReview(reply);
     } catch (error) {
       console.error("API request error:", error.response ? error.response.data : error.message);
-      setReview("❌ Error getting review. Check your API key or model.");
+      if (error.response && error.response.status === 401) {
+        setApiKeyError('❌ API key is invalid or expired. Please update your API key.');
+        setReview('');
+      } else {
+        setReview("❌ Error getting review. Check your API key or model.");
+      }
     }
 
     setLoading(false);
@@ -64,6 +73,19 @@ function App() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
+
+        <div className="mb-4">
+          <label htmlFor="apiKey" className="block font-semibold mb-1">API Key:</label>
+          <input
+            id="apiKey"
+            type="text"
+            className="w-full p-2 border rounded mb-1 font-mono"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Enter your OpenRouter API key"
+          />
+          {apiKeyError && <p className="text-red-600 font-semibold">{apiKeyError}</p>}
+        </div>
 
         <div className="flex gap-4 mb-4">
           <select
